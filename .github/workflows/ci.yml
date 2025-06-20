@@ -3,7 +3,7 @@ name: MLflow Project CI & Docker
 on:
   push:
     paths:
-      - 'MLProject/**'
+      - 'MLproject/**'
       - '.github/workflows/ci.yml'
   workflow_dispatch:
 
@@ -51,7 +51,7 @@ jobs:
 
       - name: Run MLflow Project
         run: |
-          cd MLProject
+          cd MLproject
           mlflow run . --no-conda
 
       - name: Set Docker Image Tag
@@ -59,7 +59,7 @@ jobs:
 
       - name: Build Docker Image with MLflow
         run: |
-          cd MLProject
+          cd MLproject
           mlflow models build-docker -m ./tfidf_vectorizer -n ${{ env.IMAGE_TAG }}
 
       - name: Login to Docker Hub
@@ -76,7 +76,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: model-artifacts
-          path: MLProject/**/*.joblib
+          path: MLproject/**/*.joblib
 
       # Optional: Run unit tests (if test suite exists)
       # - name: Run Unit Tests
