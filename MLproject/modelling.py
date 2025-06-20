@@ -7,12 +7,19 @@ import dagshub
 import joblib
 import os
 
-# Set up MLflow and DagsHub configuration using environment variables
+# === Secure DagsHub Token Configuration ===
+dagshub_token = os.getenv("DAGSHUB_TOKEN")
+if not dagshub_token:
+    raise ValueError("DAGSHUB_TOKEN environment variable is not set.")
 os.environ['MLFLOW_TRACKING_URI'] = 'https://dagshub.com/mariouskono/modelll.mlflow'
-os.environ['DAGSHUB_TOKEN'] = os.getenv("DAGSHUB_TOKEN")  # Secure via GitHub Secrets
 
-# Initialize DagsHub with token from env
-dagshub.init(repo_owner='mariouskono', repo_name='modelll', mlflow=True)
+# ✅ Pass the token explicitly to avoid auth prompts
+dagshub.init(
+    repo_owner='mariouskono',
+    repo_name='modelll',
+    mlflow=True,
+    token=dagshub_token
+)
 
 try:
     # Load the dataset
