@@ -1,4 +1,5 @@
 name: MLflow Project CI & Docker
+
 on:
   push:
     paths:
@@ -9,60 +10,74 @@ on:
 jobs:
   train-and-docker:
     runs-on: ubuntu-latest
+    env:
+      IMAGE_NAME: mariouskono/workflow-ci
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-          
+
       - name: Install core dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install numpy>=1.25.0,<2.0.0
-          
+          pip install "numpy>=1.25.0,<2.0.0"
+
       - name: Install ML dependencies
         run: |
-          pip install pandas>=2.2.0,<2.3.0
-          pip install scikit-learn>=1.5.0,<1.6.0
-          pip install matplotlib>=3.8.0,<3.9.0
-          pip install seaborn>=0.13.0,<0.14.0
-          
+          pip install "pandas>=2.2.0,<2.3.0"
+          pip install "scikit-learn>=1.5.0,<1.6.0"
+          pip install "matplotlib>=3.8.0,<3.9.0"
+          pip install "seaborn>=0.13.0,<0.14.0"
+
       - name: Install MLflow and utilities
         run: |
-          pip install mlflow>=2.19.0,<3.0.0
-          pip install joblib>=1.3.0,<2.0.0
-          pip install python-dotenv>=1.0.0,<2.0.0
+          pip install "mlflow>=2.19.0,<3.0.0"
+          pip install "joblib>=1.3.0,<2.0.0"
+          pip install "python-dotenv>=1.0.0,<2.0.0"
           pip install dagshub
-          
+
       - name: Verify installation
         run: |
           python -c "import numpy, pandas, sklearn, matplotlib, seaborn, mlflow, joblib; print('All packages imported successfully')"
-          
+
+      # Optional: Load environment variables from .env (if used)
+      # - name: Load environment variables
+      #   run: export $(cat .env | xargs)
+
       - name: Run MLflow Project
         run: |
           cd MLProject
           mlflow run . --no-conda
-          
+
+      - name: Set Docker Image Tag
+        run: echo "IMAGE_TAG=${{ env.IMAGE_NAME }}:${{ github.sha }}" >> $GITHUB_ENV
+
       - name: Build Docker Image with MLflow
         run: |
           cd MLProject
-          mlflow models build-docker -m ./tfidf_vectorizer -n mariouskono/workflow-ci:latest
-          
+          mlflow models build-docker -m ./tfidf_vectorizer -n ${{ env.IMAGE_TAG }}
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.mariouskono }}
+          username: ${{ secrets.mmariouskono }}
           password: ${{ secrets.dckr_pat_3cVWF4RrrkVFO13ui4y0wL46Z20 }}
-          
+
       - name: Push Docker Image
         run: |
-          docker push mariouskono/workflow-ci:latest
-          
+          docker push ${{ env.IMAGE_TAG }}
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: model-artifacts
-          path: MLProject/*.joblib
+          path: MLProject/**/*.joblib
+
+      # Optional: Run unit tests (if test suite exists)
+      # - name: Run Unit Tests
+      #   run: pytest tests/
