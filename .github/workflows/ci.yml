@@ -3,7 +3,7 @@ name: MLflow Project CI & Docker
 on:
   push:
     paths:
-      - 'MLProject/**'
+      - 'MLproject/**'
       - '.github/workflows/ci.yml'
   workflow_dispatch:
 
@@ -42,18 +42,18 @@ jobs:
 
       - name: Run MLflow Project
         run: |
-          cd MLProject
+          cd MLproject
           mlflow run . --env-manager=local
 
       - name: Read Run ID
         id: read_run_id
         run: |
-          cd MLProject
+          cd MLproject
           echo "RUN_ID=$(cat mlflow_run_id.txt)" >> $GITHUB_ENV
 
       - name: Build Docker Image from MLflow Model
         run: |
-          cd MLProject
+          cd MLproject
           mlflow models build-docker -m "mlruns/0/${{ env.RUN_ID }}/artifacts/tfidf_model" -n ${{ env.IMAGE_NAME }}:${{ github.sha }}
 
       - name: Login to Docker Hub
@@ -70,4 +70,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: model-artifacts
-          path: MLProject/**/*.joblib
+          path: MLproject/**/*.joblib
