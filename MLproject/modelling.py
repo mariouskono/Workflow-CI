@@ -7,12 +7,11 @@ import dagshub
 import joblib
 import os
 
-# Set up MLflow and DagsHub configuration
+# Set up MLflow and DagsHub configuration using environment variables
 os.environ['MLFLOW_TRACKING_URI'] = 'https://dagshub.com/mariouskono/modelll.mlflow'
-os.environ['DAGSHUB_TOKEN'] = '23417d195662b97823204612a199b13df27b1649'  # Replace with your actual token
-os.environ['DAGSHUB_USERNAME'] = 'mariouskono'
+os.environ['DAGSHUB_TOKEN'] = os.getenv("DAGSHUB_TOKEN")  # Secure via GitHub Secrets
 
-# Initialize DagsHub with explicit parameters
+# Initialize DagsHub with token from env
 dagshub.init(repo_owner='mariouskono', repo_name='modelll', mlflow=True)
 
 try:
