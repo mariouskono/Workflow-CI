@@ -18,7 +18,7 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
-          environment-file: MLproject/conda.yaml 
+          environment-file: MLproject/conda.yaml
           activate-environment: content_based_env
 
       - name: Install MLflow
