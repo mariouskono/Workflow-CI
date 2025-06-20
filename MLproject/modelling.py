@@ -13,13 +13,11 @@ if not dagshub_token:
     raise ValueError("DAGSHUB_TOKEN environment variable is not set.")
 os.environ['MLFLOW_TRACKING_URI'] = 'https://dagshub.com/mariouskono/modelll.mlflow'
 
-# ✅ Pass the token explicitly to avoid auth prompts
-dagshub.init(
-    repo_owner='mariouskono',
-    repo_name='modelll',
-    mlflow=True,
-    token=dagshub_token
-)
+# ✅ Authenticate explicitly using dagshub.auth
+dagshub.auth.add_app_token(dagshub_token)
+
+# ✅ Then initialize MLflow logging
+dagshub.init(repo_owner='mariouskono', repo_name='modelll', mlflow=True)
 
 try:
     # Load the dataset
