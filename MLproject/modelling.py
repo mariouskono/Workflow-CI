@@ -6,6 +6,7 @@ import mlflow
 import dagshub
 import joblib
 import os
+import sklearn
 
 print("✅ Starting script...")
 
@@ -15,14 +16,14 @@ if not dagshub_token:
     raise ValueError("DAGSHUB_TOKEN environment variable is not set.")
 os.environ['MLFLOW_TRACKING_URI'] = 'https://dagshub.com/mariouskono/modelll.mlflow'
 
-# ✅ Authenticate and initialize DagsHub
+# Authenticate and initialize DagsHub
 print("🔐 Authenticating with DagsHub...")
 dagshub.auth.add_app_token(dagshub_token)
 dagshub.init(repo_owner='mariouskono', repo_name='modelll', mlflow=True)
 print("✅ DagsHub authenticated and MLflow initialized.")
 
 try:
-    # Load the dataset
+    # Load dataset
     print("📥 Loading dataset...")
     df = pd.read_csv('dataset_tempat_wisata_bali_processed.csv')
     print("✅ Dataset loaded. Rows:", len(df))
@@ -30,20 +31,17 @@ try:
     # Feature Engineering
     print("🧠 Creating 'content' column...")
     df['content'] = df['kategori'] + ' ' + df['preferensi']
-    print("✅ Feature engineering complete.")
 
     # TF-IDF Vectorization
-    print("🔢 Applying TF-IDF vectorization...")
+    print("🔢 Vectorizing content...")
     tfidf_vectorizer = TfidfVectorizer(stop_words='english')
     tfidf_matrix = tfidf_vectorizer.fit_transform(df['content'])
-    print("✅ TF-IDF matrix created. Shape:", tfidf_matrix.shape)
 
-    # Compute cosine similarity
-    print("📐 Calculating cosine similarity...")
+    # Cosine Similarity
+    print("📐 Calculating similarity...")
     cosine_sim = cosine_similarity(tfidf_matrix, tfidf_matrix)
-    print("✅ Cosine similarity calculated.")
 
-    # Recommendation function
+    # Recommendation Function
     def get_recommendations(title, cosine_sim=cosine_sim, df=df):
         try:
             idx = df.index[df['nama'] == title].tolist()[0]
@@ -56,33 +54,38 @@ try:
             print(f"⚠️ Place '{title}' not found in dataset.")
             return pd.Series()
 
-    # Get example recommendation
-    print("🔍 Getting recommendations for 'Pantai Mengening'...")
+    print("🔍 Generating example recommendations...")
     recommended_places = get_recommendations('Pantai Mengening')
-    print("✅ Recommendations found:", recommended_places.tolist())
+    print("✅ Recommendations:", recommended_places.tolist())
 
-    # Save models
-    print("💾 Saving model files...")
+    # Save non-MLflow artifacts
     joblib.dump(tfidf_vectorizer, 'tfidf_vectorizer.joblib')
     joblib.dump(cosine_sim, 'cosine_sim.joblib')
-    print("✅ Models saved to disk.")
 
-    # MLflow logging
-    print("📊 Starting MLflow logging...")
+    # MLflow Logging
+    print("📊 Logging to MLflow...")
     with mlflow.start_run(description="Content-Based Recommender Model") as run:
-        # Log parameters
         mlflow.log_param("vectorizer_type", "TF-IDF")
         mlflow.log_param("similarity_metric", "cosine")
-        
-        # Log metrics
         mlflow.log_metric("num_recommendations", len(recommended_places))
         mlflow.log_metric("vocabulary_size", len(tfidf_vectorizer.vocabulary_))
 
-        # Log artifacts
-        mlflow.log_artifact('tfidf_vectorizer.joblib')
         mlflow.log_artifact('cosine_sim.joblib')
         mlflow.log_artifact('dataset_tempat_wisata_bali_processed.csv')
-    print("✅ MLflow logging complete.")
+
+        # ✅ Log a full MLflow model for Docker use
+        mlflow.sklearn.log_model(
+            sk_model=tfidf_vectorizer,
+            artifact_path="tfidf_model",
+            registered_model_name="TFIDFRecommender"
+        )
+
+        # Output run ID to file so the workflow can use it
+        run_id = run.info.run_id
+        with open("mlflow_run_id.txt", "w") as f:
+            f.write(run_id)
+
+    print("✅ MLflow run complete. Run ID:", run_id)
 
 except Exception as e:
     print(f"❌ An error occurred: {str(e)}")
