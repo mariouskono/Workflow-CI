@@ -1,5 +1,4 @@
 name: MLflow Project CI & Docker
-
 on:
   push:
     paths:
@@ -13,45 +12,50 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Remove previous conda env cache
-        run: |
-          rm -rf /usr/share/miniconda/envs/content_based_env || true
-          rm -rf ~/.conda/envs/content_based_env || true
-
+        
       - name: Set up Miniconda
         uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
-          environment-file: MLproject/conda.yaml
-          activate-environment: content_based_env
-
-      - name: Install MLflow
-        run: pip install mlflow
-
-      - name: Install dagshub
-        run: pip install dagshub
-
-      - name: Run MLflow Project
+          python-version: 3.10
+          miniforge-version: latest
+          use-mamba: true  # Use mamba for faster dependency resolution
+          
+      - name: Create conda environment
+        shell: bash -el {0}
         run: |
+          conda env create -f MLproject/conda.yaml
+          
+      - name: Activate environment and install additional packages
+        shell: bash -el {0}
+        run: |
+          conda activate content_based_env
+          pip install mlflow dagshub
+          
+      - name: Run MLflow Project
+        shell: bash -el {0}
+        run: |
+          conda activate content_based_env
           cd MLProject
           mlflow run . --no-conda
-
+          
       - name: Build Docker Image with MLflow
+        shell: bash -el {0}
         run: |
+          conda activate content_based_env
           cd MLProject
           mlflow models build-docker -m ./tfidf_vectorizer -n mariouskono/workflow-ci:latest
-
+          
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.mariouskono }}
           password: ${{ secrets.dckr_pat_3cVWF4RrrkVFO13ui4y0wL46Z20 }}
-
+          
       - name: Push Docker Image
         run: |
           docker push mariouskono/workflow-ci:latest
-
+          
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
