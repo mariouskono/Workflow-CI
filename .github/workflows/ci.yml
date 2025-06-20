@@ -14,6 +14,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Remove previous conda env cache
+        run: |
+          rm -rf /usr/share/miniconda/envs/content_based_env || true
+          rm -rf ~/.conda/envs/content_based_env || true
+
       - name: Set up Miniconda
         uses: conda-incubator/setup-miniconda@v3
         with:
