@@ -52,7 +52,7 @@ jobs:
       - name: Run MLflow Project
         run: |
           cd MLproject
-          mlflow run . --no-conda
+          mlflow run . --env-manager=local
 
       - name: Set Docker Image Tag
         run: echo "IMAGE_TAG=${{ env.IMAGE_NAME }}:${{ github.sha }}" >> $GITHUB_ENV
