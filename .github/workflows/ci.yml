@@ -1,4 +1,4 @@
-name: MLflow Project CI & Docker
+name: MLflow Project CI & Docker 
 
 on:
   push:
