@@ -1,0 +1,9 @@
+name: content_based_recommender
+
+conda_env: conda.yaml
+
+entry_points:
+  main:
+    parameters:
+      data_path: {type: str, default: "dataset_tempat_wisata_bali_processed.csv"}
+    command: "python modelling.py --data_path {data_path}"
