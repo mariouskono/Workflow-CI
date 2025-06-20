@@ -1,7 +1,7 @@
 name: content_based_env
 channels:
-  - defaults
   - conda-forge
+  - defaults
 dependencies:
   - python=3.10
   - pip
