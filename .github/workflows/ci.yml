@@ -1,0 +1,51 @@
+name: MLflow Project CI & Docker
+
+on:
+  push:
+    paths:
+      - 'MLProject/**'
+      - '.github/workflows/ci.yml'
+  workflow_dispatch:
+
+jobs:
+  train-and-docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v3
+        with:
+          auto-update-conda: true
+          environment-file: MLProject/conda.yaml
+          activate-environment: content_based_env
+
+      - name: Install MLflow
+        run: pip install mlflow
+
+      - name: Run MLflow Project
+        run: |
+          cd MLProject
+          mlflow run . --no-conda
+
+      - name: Build Docker Image with MLflow
+        run: |
+          cd MLProject
+          mlflow models build-docker -m ./tfidf_vectorizer -n mariouskono/workflow-ci:latest
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.mariouskono }}
+          password: ${{ secrets.dckr_pat_3cVWF4RrrkVFO13ui4y0wL46Z20 }}
+
+      - name: Push Docker Image
+        run: |
+          docker push mariouskono/workflow-ci:latest
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-artifacts
+          path: MLProject/*.joblib
