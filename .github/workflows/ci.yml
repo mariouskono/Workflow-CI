@@ -1,4 +1,4 @@
-name: MLflow Project CI & Docker 
+name: MLflow Project CI & Docker
 
 on:
   push:
@@ -28,6 +28,9 @@ jobs:
 
       - name: Install MLflow
         run: pip install mlflow
+
+      - name: Install dagshub
+        run: pip install dagshub
 
       - name: Run MLflow Project
         run: |
