@@ -3,7 +3,7 @@ name: MLflow Project CI & Docker
 on:
   push:
     paths:
-      - 'MLProject/**'
+      - 'MLproject/**'
       - '.github/workflows/ci.yml'
   workflow_dispatch:
 
@@ -48,7 +48,7 @@ jobs:
 
       - name: Run MLflow Project
         run: |
-          cd MLProject
+          cd MLproject
           mlflow run . --env-manager=local
 
       - name: Set Docker Image Tag
