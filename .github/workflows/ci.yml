@@ -13,31 +13,23 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         
-      - name: Set up Miniconda
-        uses: conda-incubator/setup-miniconda@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          auto-update-conda: true
-          environment-file: MLproject/conda.yaml
-          activate-environment: content_based_env
-          use-mamba: true  # Use mamba for faster dependency resolution
+          python-version: '3.10'
           
-      - name: Activate environment and install additional packages
-        shell: bash -el {0}
+      - name: Install dependencies
         run: |
-          conda activate content_based_env
-          pip install mlflow dagshub
+          python -m pip install --upgrade pip
+          pip install pandas==2.2.2 scikit-learn==1.5.0 numpy==1.24.0 mlflow==2.19.0 joblib==1.3.2 matplotlib==3.8.0 seaborn==0.13.0 python-dotenv==1.0.0 dagshub
           
       - name: Run MLflow Project
-        shell: bash -el {0}
         run: |
-          conda activate content_based_env
           cd MLProject
           mlflow run . --no-conda
           
       - name: Build Docker Image with MLflow
-        shell: bash -el {0}
         run: |
-          conda activate content_based_env
           cd MLProject
           mlflow models build-docker -m ./tfidf_vectorizer -n mariouskono/workflow-ci:latest
           
