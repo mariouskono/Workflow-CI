@@ -1,0 +1,10 @@
+artifact_location: file:///C:/Users/ADVAN/Music/SMSML_Bertnardo-Mario-Uskono/Membangun-model/mlruns/0/models/m-3f68b83395d74257b8fee7d6556a065b/artifacts
+creation_timestamp: 1750392887933
+experiment_id: '0'
+last_updated_timestamp: 1750392901722
+model_id: m-3f68b83395d74257b8fee7d6556a065b
+model_type: null
+name: model
+source_run_id: d2e0b1609b1c48529553d45dc8a7552e
+status: 2
+status_message: null
