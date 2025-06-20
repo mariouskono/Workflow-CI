@@ -17,14 +17,9 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
-          python-version: 3.10
-          miniforge-version: latest
+          environment-file: MLproject/conda.yaml
+          activate-environment: content_based_env
           use-mamba: true  # Use mamba for faster dependency resolution
-          
-      - name: Create conda environment
-        shell: bash -el {0}
-        run: |
-          conda env create -f MLproject/conda.yaml
           
       - name: Activate environment and install additional packages
         shell: bash -el {0}
