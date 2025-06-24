@@ -21,20 +21,24 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: '3.12' # Mengubah dari '3.10' ke '3.12' untuk konsistensi
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install "numpy>=1.25.0,<2.0.0"
-          pip install "pandas>=2.2.0,<2.3.0"
-          pip install "scikit-learn>=1.5.0,<1.6.0"
-          pip install "matplotlib>=3.8.0,<3.9.0"
-          pip install "seaborn>=0.13.0,<0.14.0"
-          pip install "mlflow>=2.19.0,<3.0.0"
-          pip install "joblib>=1.3.0,<2.0.0"
-          pip install "python-dotenv>=1.0.0,<2.0.0"
+          # Menginstal versi yang tepat seperti yang ditemukan di MLproject/mlruns/0/models/.../artifacts/requirements.txt
+          pip install "mlflow==3.1.0"
+          pip install "cloudpickle==3.1.1"
+          pip install "numpy==2.0.2"
+          pip install "pandas==2.2.2"
+          pip install "psutil==7.0.0"
+          pip install "scikit-learn==1.6.1"
+          pip install "scipy==1.15.3"
+          pip install "joblib==1.3.2" # Versi Joblib dari MLproject/conda.yaml
+          pip install "python-dotenv==1.0.0" # Versi python-dotenv dari MLproject/conda.yaml
           pip install dagshub
+          pip install matplotlib # Tetap sertakan jika digunakan untuk plotting/visualisasi
+          pip install seaborn # Tetap sertakan jika digunakan untuk plotting/visualisasi
 
       - name: Verify installation
         run: |
@@ -46,15 +50,18 @@ jobs:
           mlflow run . --env-manager=local
 
       - name: Read Run ID
-        id: read_run_id
+        id: read_run_id # Menambahkan ID ke langkah untuk referensi outputnya
         run: |
           cd MLproject
-          echo "RUN_ID=$(cat mlflow_run_id.txt)" >> $GITHUB_ENV
+          # Menggunakan GITHUB_OUTPUT untuk meneruskan ID run ke langkah-langkah berikutnya
+          RUN_ID=$(cat mlflow_run_id.txt)
+          echo "run_id_output=$RUN_ID" >> $GITHUB_OUTPUT
 
       - name: Build Docker Image from MLflow Model
         run: |
           cd MLproject
-          mlflow models build-docker -m "mlruns/0/${{ env.RUN_ID }}/artifacts/tfidf_model" -n ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          # Menggunakan output dari langkah sebelumnya untuk mendapatkan RUN_ID
+          mlflow models build-docker -m "mlruns/0/${{ steps.read_run_id.outputs.run_id_output }}/artifacts/tfidf_model" -n ${{ env.IMAGE_NAME }}:${{ github.sha }}
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
