@@ -43,26 +43,26 @@ jobs:
         run: |
           python -c "import numpy, pandas, sklearn, matplotlib, seaborn, mlflow, joblib; print('✅ All packages imported successfully')"
 
-      - name: Run MLflow Project
+      - name: Run MLflow Project and Get Run ID
+        id: mlflow_run_step # Tambahkan ID ke langkah ini
         run: |
           cd MLproject
-          mlflow run . --env-manager=local
-        # Tambahkan langkah debug ini untuk memeriksa isi direktori MLproject
-      - name: Debug - List MLproject directory contents
-        run: |
-          ls -l MLproject/ # Menampilkan daftar file di direktori MLproject
+          # Menangkap seluruh output dari mlflow run
+          MLFLOW_RUN_OUTPUT=$(mlflow run . --env-manager=local 2>&1)
+          echo "$MLFLOW_RUN_OUTPUT" # Mencetak output untuk debugging
+          # Mengekstrak run ID dari output (contoh: "=== Run (ID 'XXXX') succeeded ===")
+          RUN_ID=$(echo "$MLFLOW_RUN_OUTPUT" | grep "=== Run (ID" | awk -F"'" '{print $2}')
+          echo "mlflow_run_id=$RUN_ID" >> $GITHUB_OUTPUT # Meneruskan RUN_ID sebagai output langkah
+        continue-on-error: true # Mengizinkan workflow berlanjut meskipun ada error logging ke Dagshub
 
-      - name: Read Run ID
-        id: read_run_id
-        run: |
-          cd MLproject
-          RUN_ID=$(cat mlflow_run_id.txt)
-          echo "run_id_output=$RUN_ID" >> $GITHUB_OUTPUT
+      # Langkah "Debug - List MLproject directory contents" bisa dihapus jika sudah tidak dibutuhkan
+      # atau bisa disesuaikan untuk dijalankan setelah langkah ini untuk verifikasi.
 
       - name: Build Docker Image from MLflow Model
         run: |
           cd MLproject
-          mlflow models build-docker -m "mlruns/0/${{ steps.read_run_id.outputs.run_id_output }}/artifacts/tfidf_model" -n ${{ env.IMAGE_NAME }}:${{ github.sha }}
+          # Menggunakan output run ID dari langkah sebelumnya
+          mlflow models build-docker -m "mlruns/0/${{ steps.mlflow_run_step.outputs.mlflow_run_id }}/artifacts/tfidf_model" -n ${{ env.IMAGE_NAME }}:${{ github.sha }}
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
