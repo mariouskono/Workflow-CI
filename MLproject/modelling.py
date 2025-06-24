@@ -14,25 +14,20 @@ print("✅ Starting script...")
 dagshub_token = os.getenv("DAGSHUB_TOKEN")
 if not dagshub_token:
     raise ValueError("DAGSHUB_TOKEN environment variable is not set.")
-# MLFLOW_TRACKING_URI harus menunjuk ke 'modelll' seperti yang dikonfirmasi pengguna
 os.environ['MLFLOW_TRACKING_URI'] = 'https://dagshub.com/mariouskono/modelll.mlflow'
 
 # Authenticate and initialize DagsHub
 print("🔐 Authenticating with DagsHub...")
 dagshub.auth.add_app_token(dagshub_token)
-# repo_name harus 'modelll' seperti yang dikonfirmasi pengguna
 dagshub.init(repo_owner='mariouskono', repo_name='modelll', mlflow=True)
 print("✅ DagsHub authenticated and MLflow initialized.")
 
 try:
-    # MLflow Logging dimulai di sini
+    # MLflow Logging starts here
     print("📊 Starting MLflow run...")
     with mlflow.start_run(description="Content-Based Recommender Model") as run:
-        run_id = run.info.run_id
-        # Menulis run ID ke file segera setelah mendapatkannya
-        with open("mlflow_run_id.txt", "w") as f:
-            f.write(run_id)
-        print("✅ MLflow run started. Run ID:", run_id) # Indikasi run dimulai dan ID disimpan
+        # Baris untuk menulis mlflow_run_id.txt dihapus
+        # Run ID akan diambil langsung dari output mlflow run di ci.yml
 
         # Load dataset
         print("📥 Loading dataset...")
@@ -69,7 +64,7 @@ try:
         recommended_places = get_recommendations('Pantai Mengening')
         print("✅ Recommendations:", recommended_places.tolist())
 
-        # Simpan artefak non-MLflow (ini harus tetap disimpan meskipun logging MLflow gagal)
+        # Save non-MLflow artifacts (ini harus tetap disimpan meskipun logging MLflow gagal)
         joblib.dump(tfidf_vectorizer, 'tfidf_vectorizer.joblib')
         joblib.dump(cosine_sim, 'cosine_sim.joblib')
         print("✅ Artefak non-MLflow disimpan secara lokal.")
@@ -93,9 +88,7 @@ try:
             print("✅ Logging MLflow selesai (ke Dagshub).")
         except Exception as mlflow_e:
             print(f"⚠️ Logging MLflow ke Dagshub gagal: {str(mlflow_e)}")
-            # Run tetap berlanjut secara lokal, meskipun logging remote gagal.
-            # Ini memungkinkan run_id.txt untuk ditulis dan build Docker untuk dilanjutkan.
 
-    print("✅ MLflow run (bagian lokal) selesai.") # Diubah namanya untuk kejelasan
+    print("✅ MLflow run (bagian lokal) selesai.")
 except Exception as e:
     print(f"❌ Terjadi error selama eksekusi skrip: {str(e)}")
