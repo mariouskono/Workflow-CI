@@ -21,11 +21,12 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          python-version: '3.12' # Mengatur Python ke 3.12 untuk konsistensi
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
+          # Menginstal versi yang tepat seperti yang ditemukan di artefak MLflow
           pip install "mlflow==3.1.0"
           pip install "cloudpickle==3.1.1"
           pip install "numpy==2.0.2"
@@ -44,21 +45,20 @@ jobs:
           python -c "import numpy, pandas, sklearn, matplotlib, seaborn, mlflow, joblib; print('✅ All packages imported successfully')"
 
       - name: Run MLflow Project and Get Run ID
-        id: mlflow_run_step # Tambahkan ID ke langkah ini
+        id: mlflow_run_step # Memberikan ID untuk menangkap output
         run: |
           cd MLproject
-          # Menangkap seluruh output dari mlflow run
+          # Menangkap seluruh output dari mlflow run (termasuk stderr)
           MLFLOW_RUN_OUTPUT=$(mlflow run . --env-manager=local 2>&1)
           echo "$MLFLOW_RUN_OUTPUT" # Mencetak output untuk debugging
-          # Mengekstrak run ID dari output (contoh: "=== Run (ID 'XXXX') succeeded ===")
+          # Mengekstrak run ID dari output. Contoh: "=== Run (ID 'XXXX') succeeded ==="
+          # Pastikan output mlflow mencakup baris ini
           RUN_ID=$(echo "$MLFLOW_RUN_OUTPUT" | grep "=== Run (ID" | awk -F"'" '{print $2}')
           echo "mlflow_run_id=$RUN_ID" >> $GITHUB_OUTPUT # Meneruskan RUN_ID sebagai output langkah
-        continue-on-error: true # Mengizinkan workflow berlanjut meskipun ada error logging ke Dagshub
-
-      # Langkah "Debug - List MLproject directory contents" bisa dihapus jika sudah tidak dibutuhkan
-      # atau bisa disesuaikan untuk dijalankan setelah langkah ini untuk verifikasi.
+        continue-on-error: true # Memungkinkan workflow berlanjut meskipun ada error logging ke Dagshub
 
       - name: Build Docker Image from MLflow Model
+        # Langkah ini hanya akan berjalan jika 'mlflow_run_id' berhasil diekstrak
         run: |
           cd MLproject
           # Menggunakan output run ID dari langkah sebelumnya
