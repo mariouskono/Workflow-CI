@@ -14,11 +14,13 @@ print("✅ Starting script...")
 dagshub_token = os.getenv("DAGSHUB_TOKEN")
 if not dagshub_token:
     raise ValueError("DAGSHUB_TOKEN environment variable is not set.")
+# Dikoreksi: MLFLOW_TRACKING_URI harus menunjuk ke 'modelll' seperti yang dikonfirmasi pengguna
 os.environ['MLFLOW_TRACKING_URI'] = 'https://dagshub.com/mariouskono/modelll.mlflow'
 
 # Authenticate and initialize DagsHub
 print("🔐 Authenticating with DagsHub...")
 dagshub.auth.add_app_token(dagshub_token)
+# Dikoreksi: repo_name harus 'modelll' seperti yang dikonfirmasi pengguna
 dagshub.init(repo_owner='mariouskono', repo_name='modelll', mlflow=True)
 print("✅ DagsHub authenticated and MLflow initialized.")
 
