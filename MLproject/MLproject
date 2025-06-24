@@ -1,9 +1,9 @@
-name: content_based_recommender
+name: ContentBasedRecommender # Nama proyek MLflow Anda
 
-conda_env: conda.yaml
+conda_env: conda.yaml # Mengacu pada file conda.yaml di direktori yang sama
 
-entry_points:
-  main:
-    parameters:
-      data_path: {type: str, default: "dataset_tempat_wisata_bali_processed.csv"}
-    command: "python modelling.py --data_path {data_path}"
+entry_points: # Mendefinisikan bagaimana proyek Anda dapat dijalankan
+  main: # Nama titik masuk default
+    command: "python modelling.py" # Perintah untuk menjalankan skrip utama Anda
+    parameters: # Jika modelling.py menerima parameter baris perintah
+      data_path: {type: path, default: dataset_tempat_wisata_bali_processed.csv}
