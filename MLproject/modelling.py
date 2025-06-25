@@ -1,3 +1,4 @@
+# MLproject/modelling.py
 import pandas as pd
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -7,6 +8,14 @@ import dagshub
 import joblib
 import os
 import sys
+import logging # <--- IMPORT logging
+
+# Set MLFLOW_DEBUG untuk logging yang lebih verbose
+os.environ['MLFLOW_DEBUG'] = 'true' # <--- TAMBAHKAN BARIS INI di awal skrip
+
+# Konfigurasi logging dasar untuk melihat output debug
+logging.basicConfig(level=logging.DEBUG) # <--- UBAH KE DEBUG untuk verbositas maksimal
+logger = logging.getLogger(__name__)
 
 print("✅ Starting script...")
 
@@ -15,21 +24,14 @@ if not dagshub_token:
     raise ValueError("DAGSHUB_TOKEN environment variable is not set.")
 
 DAGSHUB_TRACKING_URI = 'https://dagshub.com/mariouskono/modelll.mlflow'
-# Kunci perbaikan: Dapatkan LOCAL_TRACKING_URI dari environment variable jika sudah disetel (oleh ci.yml)
-# Ini memastikan skrip menggunakan jalur absolut yang benar dari environment
-LOCAL_TRACKING_URI = os.getenv('MLFLOW_TRACKING_URI', "file:./mlruns") # <--- BARIS INI DIUBAH
+LOCAL_TRACKING_URI = os.getenv('MLFLOW_TRACKING_URI', "file:./mlruns") 
 
 remote_tracking_enabled = False 
 
-# Atur tracking URI berdasarkan environment. Untuk CI, URI sudah diatur secara absolut oleh ci.yml.
-# Kita hanya perlu memastikan skrip tahu apakah itu di CI untuk logika pendaftaran model.
 if os.getenv("GITHUB_ACTIONS") == "true":
-    # URI sudah diatur oleh ci.yml ke jalur absolut yang benar (misal: file:///home/...).
-    # Kita tidak perlu menimpanya lagi di sini, cukup pastikan remote_tracking_enabled disetel False.
     print(f"💡 Running in GitHub Actions. MLflow tracking URI dari env: {os.environ.get('MLFLOW_TRACKING_URI')}")
-    remote_tracking_enabled = False # Secara eksplisit nonaktifkan fitur remote untuk CI
+    remote_tracking_enabled = False 
 else:
-    # Logika autentikasi DagsHub yang ada untuk pengembangan lokal/non-CI run
     try:
         print("🔐 Authenticating with DagsHub...")
         dagshub.auth.add_app_token(dagshub_token)
@@ -40,15 +42,15 @@ else:
     except Exception as e:
         print(f"⚠️ Gagal mengautentikasi atau menginisialisasi Dagshub untuk tracking remote: {str(e)}")
         print("Menggunakan tracking MLflow lokal sebagai gantinya.")
-        os.environ['MLFLOW_TRACKING_URI'] = LOCAL_TRACKING_URI # Fallback ke lokal jika inisialisasi Dagshub gagal
+        os.environ['MLFLOW_TRACKING_URI'] = LOCAL_TRACKING_URI
         remote_tracking_enabled = False
 
 print(f"URI Tracking MLflow diatur ke: {os.environ['MLFLOW_TRACKING_URI']}")
 
-# Logika skrip utama
 try:
     print("📊 Memulai MLflow run...")
     with mlflow.start_run(description="Content-Based Recommender Model") as run:
+        logger.debug("Inside mlflow.start_run context.") # <--- Contoh debug log
         print("📥 Memuat dataset...")
         df = pd.read_csv('dataset_tempat_wisata_bali_processed.csv')
         print("✅ Dataset dimuat. Baris:", len(df))
@@ -97,26 +99,30 @@ try:
             mlflow.log_artifact('cosine_sim.joblib')
             mlflow.log_artifact('dataset_tempat_wisata_bali_processed.csv')
 
-            # Kunci Perbaikan: Hanya gunakan registered_model_name jika remote_tracking_enabled adalah True
-            if remote_tracking_enabled: # Ini akan False di CI karena kita matikan tracking remote di atas
+            if remote_tracking_enabled:
                 print("Attempting to log model with Model Registry (remote tracking).")
                 mlflow.sklearn.log_model(
                     sk_model=tfidf_vectorizer,
-                    artifact_path="tfidf_model", # Path ini relatif terhadap URI artefak run
-                    registered_model_name="TFIDFRecommender" # Ini memerlukan Model Registry
+                    artifact_path="tfidf_model",
+                    registered_model_name="TFIDFRecommender"
                 )
-            else: # Saat tracking lokal (di CI), jangan gunakan registered_model_name
+            else:
                 print("Logging model without Model Registry (local tracking).")
                 mlflow.sklearn.log_model(
                     sk_model=tfidf_vectorizer,
-                    artifact_path="tfidf_model" # Path ini relatif terhadap URI artefak run
+                    artifact_path="tfidf_model"
                 )
             print("✅ Model dan artefak MLflow berhasil dilog.")
         except Exception as mlflow_logging_e:
+            # Ini adalah bagian yang menyebabkan [Errno 13] Permission denied: '/C:'
+            # Kita ingin melihat detail lengkap mengapa ini terjadi
+            logger.error(f"❌ Detail error logging MLflow: {str(mlflow_logging_e)}", exc_info=True) # Cetak stack trace
             print(f"⚠️ Logging MLflow ke tracking server gagal: {str(mlflow_logging_e)}")
             print("Model dan artefak akan tetap tersedia di penyimpanan artefak lokal MLflow.")
+            # Tidak sys.exit(1) di sini, biarkan run lokal selesai
 
     print("✅ MLflow run (bagian lokal) selesai.")
 except Exception as main_e:
+    logger.error(f"❌ Terjadi error fatal di luar blok logging MLflow utama: {str(main_e)}", exc_info=True) # Cetak stack trace
     print(f"❌ Terjadi error fatal selama eksekusi skrip: {str(main_e)}")
     sys.exit(1)
