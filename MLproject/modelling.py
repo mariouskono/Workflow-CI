@@ -16,7 +16,7 @@ if not dagshub_token:
 
 DAGSHUB_TRACKING_URI = 'https://dagshub.com/mariouskono/modelll.mlflow'
 # Kunci perbaikan: Dapatkan LOCAL_TRACKING_URI dari environment variable jika sudah disetel (oleh ci.yml)
-# Jika tidak disetel oleh env, barulah gunakan default relatif (misal saat pengembangan lokal)
+# Ini memastikan skrip menggunakan jalur absolut yang benar dari environment
 LOCAL_TRACKING_URI = os.getenv('MLFLOW_TRACKING_URI', "file:./mlruns") # <--- BARIS INI DIUBAH
 
 remote_tracking_enabled = False 
@@ -25,9 +25,9 @@ remote_tracking_enabled = False
 # Kita hanya perlu memastikan skrip tahu apakah itu di CI untuk logika pendaftaran model.
 if os.getenv("GITHUB_ACTIONS") == "true":
     # URI sudah diatur oleh ci.yml ke jalur absolut yang benar (misal: file:///home/...).
-    # Kita tidak perlu menimpanya lagi di sini. Cukup pastikan remote_tracking_enabled disetel False.
+    # Kita tidak perlu menimpanya lagi di sini, cukup pastikan remote_tracking_enabled disetel False.
     print(f"💡 Running in GitHub Actions. MLflow tracking URI dari env: {os.environ.get('MLFLOW_TRACKING_URI')}")
-    remote_tracking_enabled = False # Secara eksplisit nonaktifkan fitur remote
+    remote_tracking_enabled = False # Secara eksplisit nonaktifkan fitur remote untuk CI
 else:
     # Logika autentikasi DagsHub yang ada untuk pengembangan lokal/non-CI run
     try:
@@ -97,14 +97,15 @@ try:
             mlflow.log_artifact('cosine_sim.joblib')
             mlflow.log_artifact('dataset_tempat_wisata_bali_processed.csv')
 
-            if remote_tracking_enabled: # Hanya coba daftarkan model jika remote tracking aktif
+            # Kunci Perbaikan: Hanya gunakan registered_model_name jika remote_tracking_enabled adalah True
+            if remote_tracking_enabled: # Ini akan False di CI karena kita matikan tracking remote di atas
                 print("Attempting to log model with Model Registry (remote tracking).")
                 mlflow.sklearn.log_model(
                     sk_model=tfidf_vectorizer,
                     artifact_path="tfidf_model", # Path ini relatif terhadap URI artefak run
                     registered_model_name="TFIDFRecommender" # Ini memerlukan Model Registry
                 )
-            else: # Saat tracking lokal, jangan gunakan registered_model_name
+            else: # Saat tracking lokal (di CI), jangan gunakan registered_model_name
                 print("Logging model without Model Registry (local tracking).")
                 mlflow.sklearn.log_model(
                     sk_model=tfidf_vectorizer,
