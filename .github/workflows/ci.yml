@@ -44,32 +44,40 @@ jobs:
         run: |
           python -c "import numpy, pandas, sklearn, matplotlib, seaborn, mlflow, joblib; print('✅ All packages imported successfully')"
 
+      - name: Force MLflow to use local tracking in CI
+        run: echo "MLFLOW_TRACKING_URI=file:./mlruns" >> $GITHUB_ENV
+        # This will set the MLFLOW_TRACKING_URI environment variable for subsequent steps.
+        # It takes precedence over what's set in modelling.py for the CI environment.
+
       - name: Run MLflow Project and Get Run ID
         id: mlflow_run_step
         run: |
           set -x
           cd MLproject
-      
+
           echo "### Debugging MLproject Directory and Script Execution ###"
+          echo "--- Listing contents of MLproject/ with file types ---"
           ls -al .
+          echo "--- Content of MLproject file (raw) ---"
           cat MLproject || echo "MLproject file not found or cannot be read."
+          echo "--- Attempting to run modelling.py directly ---"
           set +e
+          # Note: modelling.py will now see MLFLOW_TRACKING_URI=file:./mlruns due to the export above
           python modelling.py --data_path dataset_tempat_wisata_bali_processed.csv
           PYTHON_DIRECT_RUN_EXIT_CODE=$?
           set -e
           echo "modelling.py direct run exit code: $PYTHON_DIRECT_RUN_EXIT_CODE"
-      
-          # MLflow Auth for DagsHub
-          export MLFLOW_TRACKING_USERNAME="mariouskono"
-          export MLFLOW_TRACKING_PASSWORD="${{ env.DAGSHUB_TOKEN }}"
-      
+
+          echo "--- Attempting MLflow Run with verbose output ---"
+          # No need to export MLFLOW_TRACKING_USERNAME/PASSWORD here if MLFLOW_TRACKING_URI is forced local
+          # The Dagshub initialization in modelling.py will still run, but MLflow client won't try to use it for tracking
           MLFLOW_RUN_OUTPUT=$(MLFLOW_VERBOSE=1 mlflow run . --env-manager=local 2>&1)
           echo "$MLFLOW_RUN_OUTPUT"
-      
+
           RUN_ID=$(echo "$MLFLOW_RUN_OUTPUT" | grep "=== Run (ID" | awk -F"'" '{print $2}')
           echo "mlflow_run_id=$RUN_ID" >> $GITHUB_OUTPUT
-        continue-on-error: true
-  
+        continue-on-error: true # Keep this to see all debug output if any issues remain
+
       - name: Build Docker Image from MLflow Model
         # Langkah ini hanya akan berjalan jika 'mlflow_run_id' berhasil diekstrak
         run: |
