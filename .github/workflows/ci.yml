@@ -27,7 +27,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           # Menginstal versi yang tepat seperti yang ditemukan di artefak MLflow
-          pip install "mlflow==3.1.0"
+          pip install "mlflow==2.2.2"
           pip install "cloudpickle==3.1.1"
           pip install "numpy==2.0.2"
           pip install "pandas==2.2.2"
