@@ -1,4 +1,3 @@
-# MLproject/modelling.py
 import pandas as pd
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -8,7 +7,6 @@ import dagshub
 import joblib
 import os
 import sys
-from urllib.parse import urlparse # Import urlparse
 
 print("✅ Starting script...")
 
@@ -19,14 +17,13 @@ if not dagshub_token:
 DAGSHUB_TRACKING_URI = 'https://dagshub.com/mariouskono/modelll.mlflow'
 LOCAL_TRACKING_URI = "file:./mlruns"
 
-# Determine if running in GitHub Actions environment
-# This helps differentiate CI runs from local dev runs
+remote_tracking_enabled = False 
+
+# Set tracking URI berdasarkan lingkungan, prioritaskan lokal untuk CI
 if os.getenv("GITHUB_ACTIONS") == "true":
     os.environ['MLFLOW_TRACKING_URI'] = LOCAL_TRACKING_URI
-    remote_tracking_enabled = False # Explicitly set to False for CI
     print("💡 Running in GitHub Actions. Forcing MLflow to use local tracking.")
 else:
-    # Existing DagsHub authentication logic for local development/non-CI runs
     try:
         print("🔐 Authenticating with DagsHub...")
         dagshub.auth.add_app_token(dagshub_token)
@@ -42,29 +39,23 @@ else:
 
 print(f"URI Tracking MLflow diatur ke: {os.environ['MLFLOW_TRACKING_URI']}")
 
-# Main script logic, ensuring model training and local logging always run
 try:
     print("📊 Memulai MLflow run...")
     with mlflow.start_run(description="Content-Based Recommender Model") as run:
-        # Load dataset
         print("📥 Memuat dataset...")
         df = pd.read_csv('dataset_tempat_wisata_bali_processed.csv')
         print("✅ Dataset dimuat. Baris:", len(df))
 
-        # Feature Engineering
         print("🧠 Membuat kolom 'content'...")
         df['content'] = df['kategori'] + ' ' + df['preferensi']
 
-        # TF-IDF Vectorization
         print("🔢 Melakukan vektorisasi konten...")
         tfidf_vectorizer = TfidfVectorizer(stop_words='english')
         tfidf_matrix = tfidf_vectorizer.fit_transform(df['content'])
 
-        # Cosine Similarity
         print("📐 Menghitung kemiripan...")
         cosine_sim = cosine_similarity(tfidf_matrix, tfidf_matrix)
 
-        # Recommendation Function
         def get_recommendations(title, cosine_sim=cosine_sim, df=df):
             try:
                 idx = df.index[df['nama'] == title].tolist()[0]
@@ -81,17 +72,14 @@ try:
         recommended_places = get_recommendations('Pantai Mengening')
         print("✅ Rekomendasi:", recommended_places.tolist())
 
-        # Save non-MLflow artifacts (these should always be saved)
         try:
             joblib.dump(tfidf_vectorizer, 'tfidf_vectorizer.joblib')
             joblib.dump(cosine_sim, 'cosine_sim.joblib')
             print("✅ Artefak non-MLflow disimpan secara lokal.")
         except Exception as joblib_e:
             print(f"❌ Gagal menyimpan artefak non-MLflow secara lokal: {str(joblib_e)}")
-            sys.exit(1) # Critical failure if local saving fails
+            sys.exit(1)
 
-        # Attempt MLflow logging. This part logs to the configured URI (local for CI).
-        # Conditionally register model based on remote_tracking_enabled
         try:
             print("📊 Melakukan logging artefak dan model ke MLflow...")
             mlflow.log_param("vectorizer_type", "TF-IDF")
@@ -102,13 +90,12 @@ try:
             mlflow.log_artifact('cosine_sim.joblib')
             mlflow.log_artifact('dataset_tempat_wisata_bali_processed.csv')
 
-            # Only attempt to register the model if remote tracking is enabled
             if remote_tracking_enabled:
                 print("Attempting to log model with Model Registry (remote tracking).")
                 mlflow.sklearn.log_model(
                     sk_model=tfidf_vectorizer,
                     artifact_path="tfidf_model",
-                    registered_model_name="TFIDFRecommender" # This requires a Model Registry connection
+                    registered_model_name="TFIDFRecommender"
                 )
             else:
                 print("Logging model without Model Registry (local tracking).")
@@ -118,13 +105,10 @@ try:
                 )
             print("✅ Model dan artefak MLflow berhasil dilog.")
         except Exception as mlflow_logging_e:
-            # If logging fails (e.g., remote server error for model registry),
-            # print a warning but do NOT exit the script, as local artifacts are saved.
             print(f"⚠️ Logging MLflow ke tracking server gagal: {str(mlflow_logging_e)}")
             print("Model dan artefak akan tetap tersedia di penyimpanan artefak lokal MLflow.")
 
     print("✅ MLflow run (bagian lokal) selesai.")
 except Exception as main_e:
-    # This outer try-except catches errors in the core data processing or if mlflow.start_run fails even locally.
     print(f"❌ Terjadi error fatal selama eksekusi skrip: {str(main_e)}")
-    sys.exit(1) # Exit if essential parts like data loading or local MLflow run setup fail
+    sys.exit(1)
