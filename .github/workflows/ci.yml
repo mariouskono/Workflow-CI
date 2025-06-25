@@ -21,12 +21,18 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.12' # Mengatur Python ke 3.12 untuk konsistensi
-    
+          python-version: '3.10' # <--- GANTI BARIS INI dari 3.12 ke 3.10
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install "mlflow==3.1.0" # <--- GANTI BARIS INI
+          # Pastikan pyarrow diinstal sebagai biner (ini sudah benar dari perbaikan sebelumnya)
+          pip install --only-binary=:all: pyarrow
+
+          # Instal MLflow versi 3.1.0 (sesuai keinginan Anda)
+          pip install "mlflow==3.1.0"
+
+          # Dependensi lainnya (verifikasi kompatibilitas dengan Python 3.10)
           pip install "cloudpickle==3.1.1"
           pip install "numpy==2.0.2"
           pip install "pandas==2.2.2"
@@ -39,14 +45,23 @@ jobs:
           pip install matplotlib
           pip install seaborn
 
+      - name: Verify installation
+        run: |
+          python -c "import numpy, pandas, sklearn, matplotlib, seaborn, mlflow, joblib; print('✅ All packages imported successfully')"
+
       - name: Force MLflow to use local tracking in CI
-        run: echo "MLFLOW_TRACKING_URI=file:./mlruns" >> $GITHUB_ENV
-        # Ini memastikan tracking lokal untuk seluruh workflow CI.
+        run: |
+          # Dapatkan jalur absolut ke direktori kerja runner
+          WORKSPACE_DIR=$(pwd)
+          # Atur MLFLOW_TRACKING_URI ke jalur lokal yang eksplisit dan absolut
+          echo "MLFLOW_TRACKING_URI=file://$WORKSPACE_DIR/MLproject/mlruns" >> $GITHUB_ENV
+          # Atur MLFLOW_ARTIFACT_URI secara eksplisit juga, untuk mengatasi masalah '/C:'
+          echo "MLFLOW_ARTIFACT_URI=file://$WORKSPACE_DIR/MLproject/mlruns" >> $GITHUB_ENV
 
       - name: Run MLflow Project and Get Run ID
         id: mlflow_run_step
         run: |
-          set -x # Mengaktifkan mode debug shell
+          set -x
           cd MLproject
 
           echo "### Debugging MLproject Directory and Script Execution ###"
@@ -56,21 +71,19 @@ jobs:
           cat MLproject || echo "MLproject file not found or cannot be read."
           echo "--- Attempting to run modelling.py directly ---"
           set +e
-          # modelling.py akan menggunakan file:./mlruns karena MLFLOW_TRACKING_URI sudah diatur di atas
           python modelling.py --data_path dataset_tempat_wisata_bali_processed.csv
           PYTHON_DIRECT_RUN_EXIT_CODE=$?
           set -e
           echo "modelling.py direct run exit code: $PYTHON_DIRECT_RUN_EXIT_CODE"
 
           echo "--- Attempting MLflow Run with verbose output ---"
-          # Tidak perlu mengekspor MLFLOW_TRACKING_USERNAME/PASSWORD lagi karena URI sudah dipaksa lokal
           MLFLOW_RUN_OUTPUT=$(MLFLOW_VERBOSE=1 mlflow run . --env-manager=local 2>&1)
           echo "$MLFLOW_RUN_OUTPUT"
 
           RUN_ID=$(echo "$MLFLOW_RUN_OUTPUT" | grep "=== Run (ID" | awk -F"'" '{print $2}')
           echo "mlflow_run_id=$RUN_ID" >> $GITHUB_OUTPUT
         continue-on-error: true
-        
+
       - name: Build Docker Image from MLflow Model
         run: |
           cd MLproject
