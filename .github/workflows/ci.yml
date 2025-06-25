@@ -29,17 +29,16 @@ jobs:
           # Pastikan pyarrow diinstal sebagai biner (ini sudah benar dari perbaikan sebelumnya)
           pip install --only-binary=:all: pyarrow
 
-          # Instal MLflow versi 3.1.0 (sesuai keinginan Anda)
-          pip install "mlflow==3.1.0"
+          # Turunkan versi MLflow ke 2.11.1 untuk memperbaiki bug '[Errno 13] Permission denied: '/C:'
+          pip install "mlflow==2.11.1" # <--- UBAH VERSI MLFLOW DI SINI
 
-          # Dependensi lainnya (verifikasi kompatibilitas dengan Python 3.10)
-          pip install "cloudpickle==3.1.1"
-          pip install "numpy==2.0.2"
-          pip install "pandas==2.2.2"
-          pip install "psutil==7.0.0"
-          pip install "scikit-learn==1.6.1"
-          pip install "scipy==1.15.3"
-          pip install "joblib==1.3.2"
+          # Sesuaikan dependensi lainnya agar kompatibel dengan mlflow 2.11.1 di Python 3.10
+          pip install "cloudpickle<3" # Biasanya mlflow 2.x membutuhkan cloudpickle versi lebih lama
+          pip install "numpy<2" # numpy 2.x mungkin terlalu baru untuk mlflow 2.x
+          pip install "pandas<2" # pandas 2.x mungkin terlalu baru untuk mlflow 2.x
+          pip install "scikit-learn<1.3" # scikit-learn 1.7.0 mungkin terlalu baru untuk mlflow 2.x
+          pip install "scipy<1.11" # scipy 1.15.3 mungkin terlalu baru untuk mlflow 2.x
+          pip install "joblib<1.3" # joblib 1.5.1 mungkin terlalu baru untuk mlflow 2.x
           pip install "python-dotenv==1.0.0"
           pip install dagshub
           pip install matplotlib
@@ -57,7 +56,6 @@ jobs:
           echo "MLFLOW_TRACKING_URI=file://$WORKSPACE_DIR/MLproject/mlruns" >> $GITHUB_ENV
           # Atur MLFLOW_ARTIFACT_URI secara eksplisit juga, untuk mengatasi masalah '/C:'
           echo "MLFLOW_ARTIFACT_URI=file://$WORKSPACE_DIR/MLproject/mlruns" >> $GITHUB_ENV
-          echo "MLFLOW_DEBUG=true" >> $GITHUB_ENV # <--- TAMBAHKAN BARIS INI untuk debug yang lebih rinci
 
       - name: Run MLflow Project and Get Run ID
         id: mlflow_run_step
@@ -79,14 +77,13 @@ jobs:
           echo "modelling.py direct run exit code: $PYTHON_DIRECT_RUN_EXIT_CODE"
 
           echo "--- Attempting MLflow Run with verbose output ---"
-          # MLFLOW_VERBOSE=1 sudah disetel secara otomatis oleh MLFLOW_DEBUG=true
-          MLFLOW_RUN_OUTPUT=$(mlflow run . --env-manager=local 2>&1)
+          MLFLOW_RUN_OUTPUT=$(MLFLOW_VERBOSE=1 mlflow run . --env-manager=local 2>&1)
           echo "$MLFLOW_RUN_OUTPUT"
 
           RUN_ID=$(echo "$MLFLOW_RUN_OUTPUT" | grep "=== Run (ID" | awk -F"'" '{print $2}')
           echo "mlflow_run_id=$RUN_ID" >> $GITHUB_OUTPUT
-        continue-on-error: true # Tetap aktifkan ini untuk melihat semua output debug
-        
+        continue-on-error: true
+
       - name: Build Docker Image from MLflow Model
         run: |
           cd MLproject
