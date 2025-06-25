@@ -15,15 +15,21 @@ if not dagshub_token:
     raise ValueError("DAGSHUB_TOKEN environment variable is not set.")
 
 DAGSHUB_TRACKING_URI = 'https://dagshub.com/mariouskono/modelll.mlflow'
-LOCAL_TRACKING_URI = "file:./mlruns"
+# Kunci perbaikan: Dapatkan LOCAL_TRACKING_URI dari environment variable jika sudah disetel (oleh ci.yml)
+# Jika tidak disetel oleh env, barulah gunakan default relatif (misal saat pengembangan lokal)
+LOCAL_TRACKING_URI = os.getenv('MLFLOW_TRACKING_URI', "file:./mlruns") # <--- BARIS INI DIUBAH
 
 remote_tracking_enabled = False 
 
-# Set tracking URI berdasarkan lingkungan, prioritaskan lokal untuk CI
+# Atur tracking URI berdasarkan environment. Untuk CI, URI sudah diatur secara absolut oleh ci.yml.
+# Kita hanya perlu memastikan skrip tahu apakah itu di CI untuk logika pendaftaran model.
 if os.getenv("GITHUB_ACTIONS") == "true":
-    os.environ['MLFLOW_TRACKING_URI'] = LOCAL_TRACKING_URI
-    print("💡 Running in GitHub Actions. Forcing MLflow to use local tracking.")
+    # URI sudah diatur oleh ci.yml ke jalur absolut yang benar (misal: file:///home/...).
+    # Kita tidak perlu menimpanya lagi di sini. Cukup pastikan remote_tracking_enabled disetel False.
+    print(f"💡 Running in GitHub Actions. MLflow tracking URI dari env: {os.environ.get('MLFLOW_TRACKING_URI')}")
+    remote_tracking_enabled = False # Secara eksplisit nonaktifkan fitur remote
 else:
+    # Logika autentikasi DagsHub yang ada untuk pengembangan lokal/non-CI run
     try:
         print("🔐 Authenticating with DagsHub...")
         dagshub.auth.add_app_token(dagshub_token)
@@ -34,11 +40,12 @@ else:
     except Exception as e:
         print(f"⚠️ Gagal mengautentikasi atau menginisialisasi Dagshub untuk tracking remote: {str(e)}")
         print("Menggunakan tracking MLflow lokal sebagai gantinya.")
-        os.environ['MLFLOW_TRACKING_URI'] = LOCAL_TRACKING_URI
+        os.environ['MLFLOW_TRACKING_URI'] = LOCAL_TRACKING_URI # Fallback ke lokal jika inisialisasi Dagshub gagal
         remote_tracking_enabled = False
 
 print(f"URI Tracking MLflow diatur ke: {os.environ['MLFLOW_TRACKING_URI']}")
 
+# Logika skrip utama
 try:
     print("📊 Memulai MLflow run...")
     with mlflow.start_run(description="Content-Based Recommender Model") as run:
@@ -90,18 +97,18 @@ try:
             mlflow.log_artifact('cosine_sim.joblib')
             mlflow.log_artifact('dataset_tempat_wisata_bali_processed.csv')
 
-            if remote_tracking_enabled:
+            if remote_tracking_enabled: # Hanya coba daftarkan model jika remote tracking aktif
                 print("Attempting to log model with Model Registry (remote tracking).")
                 mlflow.sklearn.log_model(
                     sk_model=tfidf_vectorizer,
-                    artifact_path="tfidf_model",
-                    registered_model_name="TFIDFRecommender"
+                    artifact_path="tfidf_model", # Path ini relatif terhadap URI artefak run
+                    registered_model_name="TFIDFRecommender" # Ini memerlukan Model Registry
                 )
-            else:
+            else: # Saat tracking lokal, jangan gunakan registered_model_name
                 print("Logging model without Model Registry (local tracking).")
                 mlflow.sklearn.log_model(
                     sk_model=tfidf_vectorizer,
-                    artifact_path="tfidf_model"
+                    artifact_path="tfidf_model" # Path ini relatif terhadap URI artefak run
                 )
             print("✅ Model dan artefak MLflow berhasil dilog.")
         except Exception as mlflow_logging_e:
