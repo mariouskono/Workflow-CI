@@ -10,7 +10,7 @@ import sys
 import logging
 from mlflow.exceptions import MlflowException # <--- IMPORT MlflowException
 
-os.environ['MLFLOW_DEBUG'] = 'true' 
+os.environ['MLFLOW_DEBUG'] = 'true' # Tetap aktifkan debug untuk saat ini
 logging.basicConfig(level=logging.DEBUG) 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +47,7 @@ print(f"URI Tracking MLflow diatur ke: {os.environ['MLFLOW_TRACKING_URI']}")
 try:
     # <--- TAMBAHKAN BLOK INI UNTUK SECARA EKSPLISIT MEMBUAT/MENDAPATKAN EKSPERIMEN
     client = mlflow.tracking.MlflowClient()
-    experiment_name = "ContentBasedRecommenderExperiment"
+    experiment_name = "ContentBasedRecommenderExperiment" # Nama eksperimen Anda
     try:
         experiment_id = client.create_experiment(experiment_name)
         logger.info(f"✅ Experiment '{experiment_name}' created with ID: {experiment_id}")
@@ -110,22 +110,23 @@ try:
             mlflow.log_artifact('cosine_sim.joblib')
             mlflow.log_artifact('dataset_tempat_wisata_bali_processed.csv')
 
-            if remote_tracking_enabled:
+            if remote_tracking_enabled: 
                 print("Attempting to log model with Model Registry (remote tracking).")
                 mlflow.sklearn.log_model(
                     sk_model=tfidf_vectorizer,
-                    artifact_path="tfidf_model",
+                    artifact_path="tfidf_model", 
                     registered_model_name="TFIDFRecommender"
                 )
-            else:
+            else: 
                 print("Logging model without Model Registry (local tracking).")
                 mlflow.sklearn.log_model(
                     sk_model=tfidf_vectorizer,
-                    artifact_path="tfidf_model"
+                    artifact_path="tfidf_model" 
                 )
             print("✅ Model dan artefak MLflow berhasil dilog.")
         except Exception as mlflow_logging_e:
-            logger.error(f"❌ Detail error logging MLflow: {str(mlflow_logging_e)}", exc_info=True)
+            # Ini adalah bagian yang menyebabkan [Errno 13] Permission denied: '/C:'
+            logger.error(f"❌ Detail error logging MLflow: {str(mlflow_logging_e)}", exc_info=True) 
             print(f"⚠️ Logging MLflow ke tracking server gagal: {str(mlflow_logging_e)}")
             print("Model dan artefak akan tetap tersedia di penyimpanan artefak lokal MLflow.")
 
