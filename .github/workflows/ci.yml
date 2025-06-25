@@ -50,19 +50,26 @@ jobs:
 
       - name: Force MLflow to use local tracking in CI
         run: |
-          # Dapatkan jalur absolut ke direktori kerja runner
           WORKSPACE_DIR=$(pwd)
-          # Atur MLFLOW_TRACKING_URI ke jalur lokal yang eksplisit dan absolut
           echo "MLFLOW_TRACKING_URI=file://$WORKSPACE_DIR/MLproject/mlruns" >> $GITHUB_ENV
-          # Atur MLFLOW_ARTIFACT_URI secara eksplisit juga, untuk mengatasi masalah '/C:'
           echo "MLFLOW_ARTIFACT_URI=file://$WORKSPACE_DIR/MLproject/mlruns" >> $GITHUB_ENV
+
+      - name: Clean up previous mlruns and ensure directory exists
+        run: |
+          # Hapus direktori mlruns sebelumnya dan buat ulang
+          rm -rf MLproject/mlruns # Menghapus setiap instalasi mlruns sebelumnya
+          mkdir -p MLproject/mlruns # Memastikan direktori ada dengan izin yang benar
+          echo "--- Permissions of MLproject/mlruns ---"
+          ls -ld MLproject/mlruns # Mencetak izin direktori
+          echo "Final MLFLOW_TRACKING_URI dari env: $MLFLOW_TRACKING_URI"
+          echo "Final MLFLOW_ARTIFACT_URI dari env: $MLFLOW_ARTIFACT_URI"
 
       - name: Run MLflow Project and Get Run ID
         id: mlflow_run_step
         run: |
           set -x # Mengaktifkan mode debug shell
           cd MLproject
-
+          
           echo "### Debugging MLproject Directory and Script Execution ###"
           echo "--- Listing contents of MLproject/ with file types ---"
           ls -al .
@@ -70,7 +77,6 @@ jobs:
           cat MLproject || echo "MLproject file not found or cannot be read."
           echo "--- Attempting to run modelling.py directly ---"
           set +e
-          # modelling.py akan menggunakan MLFLOW_TRACKING_URI dan MLFLOW_ARTIFACT_URI yang diatur di atas
           python modelling.py --data_path dataset_tempat_wisata_bali_processed.csv
           PYTHON_DIRECT_RUN_EXIT_CODE=$?
           set -e
@@ -82,7 +88,7 @@ jobs:
 
           RUN_ID=$(echo "$MLFLOW_RUN_OUTPUT" | grep "=== Run (ID" | awk -F"'" '{print $2}')
           echo "mlflow_run_id=$RUN_ID" >> $GITHUB_OUTPUT
-        continue-on-error: true
+        continue-on-error: true # Tetap aktifkan ini untuk melihat semua output debug
 
       - name: Build Docker Image from MLflow Model
         run: |
