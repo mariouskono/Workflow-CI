@@ -45,17 +45,34 @@ jobs:
           python -c "import numpy, pandas, sklearn, matplotlib, seaborn, mlflow, joblib; print('✅ All packages imported successfully')"
 
       - name: Run MLflow Project and Get Run ID
-        id: mlflow_run_step # Memberikan ID untuk menangkap output
+        id: mlflow_run_step
         run: |
+          set -x # Mengaktifkan mode debug shell untuk melihat setiap perintah dieksekusi
           cd MLproject
-          # Menangkap seluruh output dari mlflow run (termasuk stderr)
-          MLFLOW_RUN_OUTPUT=$(mlflow run . --env-manager=local 2>&1)
-          echo "$MLFLOW_RUN_OUTPUT" # Mencetak output untuk debugging
-          # Mengekstrak run ID dari output. Contoh: "=== Run (ID 'XXXX') succeeded ==="
-          # Pastikan output mlflow mencakup baris ini
+
+          echo "### Debugging MLproject Directory and Script Execution ###"
+          echo "--- Listing contents of MLproject/ with file types ---"
+          ls -al . # Menampilkan semua file (termasuk tersembunyi) dengan detail tipe dan izin
+          echo "--- Content of MLproject file (raw) ---"
+          cat MLproject || echo "MLproject file not found or cannot be read." # Mencetak isi file MLproject
+          echo "--- Attempting to run modelling.py directly ---"
+          # Jalankan modelling.py secara langsung untuk melihat output/errornya.
+          # set +e: Sementara menonaktifkan exit on error agar python error tidak langsung menghentikan shell.
+          set +e
+          python modelling.py --data_path dataset_tempat_wisata_bali_processed.csv
+          PYTHON_DIRECT_RUN_EXIT_CODE=$? # Menangkap kode keluar dari eksekusi python langsung
+          set -e # Mengaktifkan kembali exit on error
+          echo "modelling.py direct run exit code: $PYTHON_DIRECT_RUN_EXIT_CODE"
+          
+          echo "--- Attempting MLflow Run with verbose output ---"
+          # Set MLFLOW_VERBOSE=1 untuk logging yang lebih detail dari MLflow
+          MLFLOW_RUN_OUTPUT=$(MLFLOW_VERBOSE=1 mlflow run . --env-manager=local 2>&1)
+          echo "$MLFLOW_RUN_OUTPUT" # Mencetak output yang ditangkap dari mlflow run
+
+          # Ekstraksi RUN_ID (hanya akan berfungsi jika mlflow run berhasil mencetak ID)
           RUN_ID=$(echo "$MLFLOW_RUN_OUTPUT" | grep "=== Run (ID" | awk -F"'" '{print $2}')
-          echo "mlflow_run_id=$RUN_ID" >> $GITHUB_OUTPUT # Meneruskan RUN_ID sebagai output langkah
-        continue-on-error: true # Memungkinkan workflow berlanjut meskipun ada error logging ke Dagshub
+          echo "mlflow_run_id=$RUN_ID" >> $GITHUB_OUTPUT
+        continue-on-error: true # Tetap aktifkan ini agar kita bisa melihat semua output debug meskipun ada kegagalan.
 
       - name: Build Docker Image from MLflow Model
         # Langkah ini hanya akan berjalan jika 'mlflow_run_id' berhasil diekstrak
