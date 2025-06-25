@@ -22,17 +22,11 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: '3.12' # Mengatur Python ke 3.12 untuk konsistensi
-
+    
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          # Paksa pip untuk hanya menggunakan pre-built wheel untuk pyarrow
-          pip install --only-binary=:all: pyarrow # <-- BARIS INI DITAMBAHKAN/DIUBAH
-
-          # MLflow (turunkan ke versi 2.2.2 seperti yang didiagnosis sebelumnya)
-          pip install "mlflow==2.2.2" 
-
-          # Dependensi inti ML/Data
+          pip install "mlflow==3.1.0" # <--- GANTI BARIS INI
           pip install "cloudpickle==3.1.1"
           pip install "numpy==2.0.2"
           pip install "pandas==2.2.2"
@@ -41,23 +35,18 @@ jobs:
           pip install "scipy==1.15.3"
           pip install "joblib==1.3.2"
           pip install "python-dotenv==1.0.0"
-
-          # Dagshub dan visualisasi
           pip install dagshub
           pip install matplotlib
           pip install seaborn
 
-      - name: Verify installation
-        run: |
-          python -c "import numpy, pandas, sklearn, matplotlib, seaborn, mlflow, joblib; print('✅ All packages imported successfully')"
-
       - name: Force MLflow to use local tracking in CI
         run: echo "MLFLOW_TRACKING_URI=file:./mlruns" >> $GITHUB_ENV
+        # Ini memastikan tracking lokal untuk seluruh workflow CI.
 
       - name: Run MLflow Project and Get Run ID
         id: mlflow_run_step
         run: |
-          set -x
+          set -x # Mengaktifkan mode debug shell
           cd MLproject
 
           echo "### Debugging MLproject Directory and Script Execution ###"
@@ -67,19 +56,21 @@ jobs:
           cat MLproject || echo "MLproject file not found or cannot be read."
           echo "--- Attempting to run modelling.py directly ---"
           set +e
+          # modelling.py akan menggunakan file:./mlruns karena MLFLOW_TRACKING_URI sudah diatur di atas
           python modelling.py --data_path dataset_tempat_wisata_bali_processed.csv
           PYTHON_DIRECT_RUN_EXIT_CODE=$?
           set -e
           echo "modelling.py direct run exit code: $PYTHON_DIRECT_RUN_EXIT_CODE"
 
           echo "--- Attempting MLflow Run with verbose output ---"
+          # Tidak perlu mengekspor MLFLOW_TRACKING_USERNAME/PASSWORD lagi karena URI sudah dipaksa lokal
           MLFLOW_RUN_OUTPUT=$(MLFLOW_VERBOSE=1 mlflow run . --env-manager=local 2>&1)
           echo "$MLFLOW_RUN_OUTPUT"
 
           RUN_ID=$(echo "$MLFLOW_RUN_OUTPUT" | grep "=== Run (ID" | awk -F"'" '{print $2}')
           echo "mlflow_run_id=$RUN_ID" >> $GITHUB_OUTPUT
         continue-on-error: true
-
+        
       - name: Build Docker Image from MLflow Model
         run: |
           cd MLproject
