@@ -1,4 +1,3 @@
-# MLproject/modelling.py
 import pandas as pd
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -8,13 +7,11 @@ import dagshub
 import joblib
 import os
 import sys
-import logging # <--- IMPORT logging
+import logging
+from mlflow.exceptions import MlflowException # <--- IMPORT MlflowException
 
-# Set MLFLOW_DEBUG untuk logging yang lebih verbose
-os.environ['MLFLOW_DEBUG'] = 'true' # <--- TAMBAHKAN BARIS INI di awal skrip
-
-# Konfigurasi logging dasar untuk melihat output debug
-logging.basicConfig(level=logging.DEBUG) # <--- UBAH KE DEBUG untuk verbositas maksimal
+os.environ['MLFLOW_DEBUG'] = 'true' 
+logging.basicConfig(level=logging.DEBUG) 
 logger = logging.getLogger(__name__)
 
 print("✅ Starting script...")
@@ -42,15 +39,29 @@ else:
     except Exception as e:
         print(f"⚠️ Gagal mengautentikasi atau menginisialisasi Dagshub untuk tracking remote: {str(e)}")
         print("Menggunakan tracking MLflow lokal sebagai gantinya.")
-        os.environ['MLFLOW_TRACKING_URI'] = LOCAL_TRACKING_URI
+        os.environ['MLFLOW_TRACKING_URI'] = LOCAL_TRACKING_URI 
         remote_tracking_enabled = False
 
 print(f"URI Tracking MLflow diatur ke: {os.environ['MLFLOW_TRACKING_URI']}")
 
 try:
+    # <--- TAMBAHKAN BLOK INI UNTUK SECARA EKSPLISIT MEMBUAT/MENDAPATKAN EKSPERIMEN
+    client = mlflow.tracking.MlflowClient()
+    experiment_name = "ContentBasedRecommenderExperiment"
+    try:
+        experiment_id = client.create_experiment(experiment_name)
+        logger.info(f"✅ Experiment '{experiment_name}' created with ID: {experiment_id}")
+    except MlflowException as e:
+        if "already exists" in str(e): # Tangani jika eksperimen sudah ada
+            experiment_id = client.get_experiment_by_name(experiment_name).experiment_id
+            logger.info(f"💡 Experiment '{experiment_name}' already exists with ID: {experiment_id}")
+        else:
+            raise # Lemparkan error jika ada masalah lain
+    
     print("📊 Memulai MLflow run...")
-    with mlflow.start_run(description="Content-Based Recommender Model") as run:
-        logger.debug("Inside mlflow.start_run context.") # <--- Contoh debug log
+    # Gunakan experiment_id yang didapatkan/dibuat di sini
+    with mlflow.start_run(experiment_id=experiment_id, description="Content-Based Recommender Model") as run: # <--- UBAH BARIS INI
+        logger.debug("Inside mlflow.start_run context.") 
         print("📥 Memuat dataset...")
         df = pd.read_csv('dataset_tempat_wisata_bali_processed.csv')
         print("✅ Dataset dimuat. Baris:", len(df))
@@ -114,15 +125,12 @@ try:
                 )
             print("✅ Model dan artefak MLflow berhasil dilog.")
         except Exception as mlflow_logging_e:
-            # Ini adalah bagian yang menyebabkan [Errno 13] Permission denied: '/C:'
-            # Kita ingin melihat detail lengkap mengapa ini terjadi
-            logger.error(f"❌ Detail error logging MLflow: {str(mlflow_logging_e)}", exc_info=True) # Cetak stack trace
+            logger.error(f"❌ Detail error logging MLflow: {str(mlflow_logging_e)}", exc_info=True)
             print(f"⚠️ Logging MLflow ke tracking server gagal: {str(mlflow_logging_e)}")
             print("Model dan artefak akan tetap tersedia di penyimpanan artefak lokal MLflow.")
-            # Tidak sys.exit(1) di sini, biarkan run lokal selesai
 
     print("✅ MLflow run (bagian lokal) selesai.")
 except Exception as main_e:
-    logger.error(f"❌ Terjadi error fatal di luar blok logging MLflow utama: {str(main_e)}", exc_info=True) # Cetak stack trace
+    logger.error(f"❌ Terjadi error fatal di luar blok logging MLflow utama: {str(main_e)}", exc_info=True)
     print(f"❌ Terjadi error fatal selama eksekusi skrip: {str(main_e)}")
     sys.exit(1)
