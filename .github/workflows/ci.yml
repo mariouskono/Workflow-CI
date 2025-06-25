@@ -57,11 +57,12 @@ jobs:
           echo "MLFLOW_TRACKING_URI=file://$WORKSPACE_DIR/MLproject/mlruns" >> $GITHUB_ENV
           # Atur MLFLOW_ARTIFACT_URI secara eksplisit juga, untuk mengatasi masalah '/C:'
           echo "MLFLOW_ARTIFACT_URI=file://$WORKSPACE_DIR/MLproject/mlruns" >> $GITHUB_ENV
+          echo "MLFLOW_DEBUG=true" >> $GITHUB_ENV # <--- TAMBAHKAN BARIS INI untuk debug yang lebih rinci
 
       - name: Run MLflow Project and Get Run ID
         id: mlflow_run_step
         run: |
-          set -x
+          set -x # Mengaktifkan mode debug shell
           cd MLproject
 
           echo "### Debugging MLproject Directory and Script Execution ###"
@@ -71,19 +72,21 @@ jobs:
           cat MLproject || echo "MLproject file not found or cannot be read."
           echo "--- Attempting to run modelling.py directly ---"
           set +e
+          # modelling.py akan menggunakan MLFLOW_TRACKING_URI dan MLFLOW_ARTIFACT_URI yang diatur di atas
           python modelling.py --data_path dataset_tempat_wisata_bali_processed.csv
           PYTHON_DIRECT_RUN_EXIT_CODE=$?
           set -e
           echo "modelling.py direct run exit code: $PYTHON_DIRECT_RUN_EXIT_CODE"
 
           echo "--- Attempting MLflow Run with verbose output ---"
-          MLFLOW_RUN_OUTPUT=$(MLFLOW_VERBOSE=1 mlflow run . --env-manager=local 2>&1)
+          # MLFLOW_VERBOSE=1 sudah disetel secara otomatis oleh MLFLOW_DEBUG=true
+          MLFLOW_RUN_OUTPUT=$(mlflow run . --env-manager=local 2>&1)
           echo "$MLFLOW_RUN_OUTPUT"
 
           RUN_ID=$(echo "$MLFLOW_RUN_OUTPUT" | grep "=== Run (ID" | awk -F"'" '{print $2}')
           echo "mlflow_run_id=$RUN_ID" >> $GITHUB_OUTPUT
-        continue-on-error: true
-
+        continue-on-error: true # Tetap aktifkan ini untuk melihat semua output debug
+        
       - name: Build Docker Image from MLflow Model
         run: |
           cd MLproject
